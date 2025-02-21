@@ -21,32 +21,37 @@ class UseOpenAi:
             self.client = None
             return False, f"OpenAI Connection Error: {e}"
 
-    def get_response(self, message):
+    def get_response(self, messages):
         if not self.client:
             return "Connection failed. Please check your API key."
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=message
+                messages=messages
             )
             return response.choices[0].message.content
         except Exception as e:
             return f"Error while fetching response: {e}"
 
 class PromptGenerator:
-    def __init__(self, system_prompt, user_prompt):
+    def __init__(self, system_prompt, user_prompt, chat_history):
         self.system_prompt = system_prompt
         self.user_prompt = user_prompt
+        self.chat_history = chat_history
 
     def generate_prompt(self):
-        return [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": self.user_prompt}
-        ]
+        # Combine system prompt, chat history, and new user input
+        messages = [{"role": "system", "content": self.system_prompt}]
+        messages.extend(self.chat_history)  # Add previous messages
+        messages.append({"role": "user", "content": self.user_prompt})
+        return messages
 
 # Initialize session state
 if 'api_key_validated' not in st.session_state:
     st.session_state.api_key_validated = False
+
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []  # Stores conversation history
 
 # Streamlit App UI
 st.title("🤖 Coding Assistant")
@@ -68,13 +73,13 @@ if st.session_state.api_key_validated:
     # Model selection dropdown with correct model names
     model_choice = st.sidebar.selectbox(
         "Select AI Model",
-        ("gpt-4o-mini", "gpt-4o","gpt-3.5-turbo", "gpt-4", "gpt-4-turbo-preview")
+        ("gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo", "gpt-4", "gpt-4-turbo-preview")
     )
 
     # Programming language selection
     programming_language = st.sidebar.selectbox(
         "Select Programming Language",
-        ["python", "javascript", "VBS","ABAP"]
+        ["python", "javascript", "VBS", "ABAP"]
     )
 
     # Dynamic system prompt based on language selection
@@ -86,7 +91,6 @@ if st.session_state.api_key_validated:
         f"Exclude explanations outside of code comments."
     )
 
-
     # User input chat window
     user_prompt = st.text_area(
         "💬 Your Message:",
@@ -96,20 +100,29 @@ if st.session_state.api_key_validated:
 
     # Response button
     if st.button("🚀 Get Response"):
-        messages = PromptGenerator(system_prompt, user_prompt)
+        messages = PromptGenerator(system_prompt, user_prompt, st.session_state.chat_history)
         client = UseOpenAi(model_choice)
         client.validate_and_connect(api_key)  # Reconnect with validated API key
         response = client.get_response(messages.generate_prompt())
 
+        # Update chat history
+        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+        st.session_state.chat_history.append({"role": "assistant", "content": response})
+
         # Display response
         st.subheader("💡 AI Response")
         st.code(response, language=programming_language)
+
+    # Clear chat memory button
+    if st.sidebar.button("🗑️ Clear Chat Memory"):
+        st.session_state.chat_history = []
+        st.sidebar.success("Chat memory cleared!")
 
 else:
     st.warning("Please enter and validate your API key to use the application.")
 
 # Add footer styling
 st.markdown(
-    "<hr><center>Made with ❤️ by Yirong Mo</center>", 
+    "<hr><center>Made with by Yirong Mo</center>",
     unsafe_allow_html=True
 )
