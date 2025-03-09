@@ -1,7 +1,7 @@
 # 🤖 Coding Assistant
 
 A Streamlit-based application that serves as an AI-powered coding assistant, helping developers with code generation, review, and improvements across multiple programming languages.
-
+**Try the deployed application here: [https://poextrationopenai.streamlit.app/](https://apicodingsnippet.streamlit.app/)**
 ## Features
 
 - 🔑 Secure API key validation for OpenAI integration
